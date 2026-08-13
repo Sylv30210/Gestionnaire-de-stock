@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestionnaire de stock</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root{
+      --bg:#f6f7f4;
+      --panel:#ffffff;
+      --text:#1f2a24;
+      --muted:#6f7b74;
+      --line:#e3e8e4;
+      --green:#2f6f4e;
+      --green-dark:#24583e;
+      --green-soft:#e9f3ed;
+      --danger:#b74e4e;
+      --shadow:0 10px 30px rgba(28,45,35,.08);
+      --radius:18px;
+    }
+    body{
+      margin:0;
+      font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    button,input,select,textarea{ font:inherit; }
+    .app{
+      width:min(1180px,calc(100% - 28px));
+      margin:20px auto 60px;
+    }
+
+    .nav{
+      display:flex;
+      gap:8px;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:7px;
+      box-shadow:var(--shadow);
+      margin-bottom:12px;
+    }
+    .nav button{
+      flex:1;
+      border:none;
+      border-radius:13px;
+      padding:12px 14px;
+      background:transparent;
+      color:var(--muted);
+      font-weight:800;
+      cursor:pointer;
+    }
+    .nav button.active{
+      background:var(--green);
+      color:white;
+    }
+
+    .topbar{
+      display:grid;
+      grid-template-columns:auto 1fr auto;
+      gap:12px;
+      align-items:center;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:22px;
+      padding:12px;
+      box-shadow:var(--shadow);
+      position:sticky;
+      top:10px;
+      z-index:20;
+    }
+    .btn{
+      border:none;
+      border-radius:14px;
+      padding:13px 16px;
+      font-weight:800;
+      cursor:pointer;
+      font-size:14px;
+      transition:.18s ease;
+      white-space:nowrap;
+    }
+    .btn:hover{ transform:translateY(-1px); }
+    .btn.secondary{ background:#f0f3f1; color:var(--text); }
+    .btn.primary{ background:var(--green); color:white; }
+    .btn.primary:hover{ background:var(--green-dark); }
+    .btn.danger{ background:#f8eaea; color:var(--danger); }
+
+    .search{ position:relative; min-width:0; }
+    .search input{
+      width:100%;
+      border:1px solid var(--line);
+      background:#fafbfa;
+      border-radius:14px;
+      padding:13px 16px 13px 42px;
+      outline:none;
+      font-size:15px;
+    }
+    .search input:focus,
+    input:focus, textarea:focus, select:focus{
+      border-color:#9fb8aa !important;
+      box-shadow:0 0 0 4px rgba(47,111,78,.08);
+      outline:none;
+    }
+    .search span{
+      position:absolute;
+      left:15px;
+      top:50%;
+      transform:translateY(-50%);
+      color:var(--muted);
+      font-size:18px;
+      pointer-events:none;
+    }
+
+    .header{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:16px;
+      margin:28px 4px 16px;
+    }
+    .header h1{ margin:0; font-size:28px; letter-spacing:-.6px; }
+    .header p{ margin:7px 0 0; color:var(--muted); }
+    .count{
+      background:var(--green-soft);
+      color:var(--green-dark);
+      border-radius:999px;
+      padding:8px 12px;
+      font-weight:800;
+      font-size:13px;
+      white-space:nowrap;
+    }
+
+    .page{ display:none; }
+    .page.active{ display:block; }
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:16px;
+    }
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      overflow:hidden;
+      box-shadow:0 6px 20px rgba(28,45,35,.05);
+      display:flex;
+      flex-direction:column;
+      min-height:275px;
+    }
+    .photo{
+      height:155px;
+      background:linear-gradient(135deg,#edf2ee,#f9faf9);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      border-bottom:1px solid var(--line);
+    }
+    .photo img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .placeholder{
+      width:58px; height:58px; border-radius:18px;
+      background:white; border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center;
+      font-size:28px; box-shadow:0 8px 24px rgba(28,45,35,.07);
+    }
+    .card-body{ padding:15px; display:flex; flex-direction:column; gap:14px; flex:1; }
+    .name-row{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .item-name{ font-weight:800; font-size:17px; line-height:1.25; overflow-wrap:anywhere; }
+    .delete{
+      border:none; background:transparent; color:#9aa39d;
+      cursor:pointer; padding:2px 4px; font-size:16px;
+    }
+    .delete:hover{ color:var(--danger); }
+    .qty-row{
+      margin-top:auto;
+      display:flex; align-items:center; justify-content:space-between;
+      background:#f7f9f7; border:1px solid var(--line);
+      border-radius:14px; padding:7px;
+    }
+    .qty{ font-size:16px; font-weight:800; min-width:36px; text-align:center; }
+    .round{
+      width:36px; height:36px; border-radius:11px; cursor:pointer;
+      font-size:20px; font-weight:700; background:white; color:var(--text);
+      border:1px solid var(--line);
+    }
+    .round.plus{ background:var(--green); color:white; border-color:var(--green); }
+
+    .calendar-layout{
+      display:grid;
+      grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);
+      gap:18px;
+      align-items:start;
+    }
+    .calendar-box,.side-panel{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:20px;
+      box-shadow:0 6px 20px rgba(28,45,35,.05);
+      padding:16px;
+    }
+    .calendar-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:14px;
+    }
+    .calendar-title{ font-size:19px; font-weight:900; text-transform:capitalize; }
+    .calendar-head button{
+      border:none;
+      width:38px;height:38px;border-radius:12px;
+      background:#f0f3f1;cursor:pointer;font-size:18px;
+    }
+    .weekdays,.calendar-grid{
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:7px;
+    }
+    .weekdays div{
+      text-align:center;
+      font-size:12px;
+      font-weight:800;
+      color:var(--muted);
+      padding:5px 0;
+    }
+    .day{
+      min-height:92px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:8px;
+      background:#fbfcfb;
+      cursor:pointer;
+      overflow:hidden;
+    }
+    .day:hover{ border-color:#b8c9be; }
+    .day.muted{ opacity:.38; }
+    .day.selected{
+      border:2px solid var(--green);
+      background:var(--green-soft);
+    }
+    .day-number{ font-weight:900; font-size:13px; }
+    .meal-chip{
+      display:block;
+      margin-top:6px;
+      padding:4px 6px;
+      background:white;
+      border:1px solid var(--line);
+      border-radius:8px;
+      font-size:10px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .side-panel h3{ margin:0 0 4px; }
+    .side-panel .date-label{ color:var(--muted); margin-bottom:14px; font-size:14px; }
+    .field{ display:grid; gap:7px; margin-bottom:12px; }
+    .field label{ font-size:13px; font-weight:800; }
+    .field input,.field textarea,.field select{
+      width:100%;
+      padding:12px 13px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#fff;
+    }
+    .field textarea{ resize:vertical; min-height:80px; }
+    .meal-form-card{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px;
+      background:#fafbfa;
+      margin-top:12px;
+    }
+    .meal-form-card h4{
+      margin:0 0 12px;
+      font-size:16px;
+    }
+    .meal-list{ display:grid; gap:10px; margin-top:16px; }
+    .meal-entry{
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:12px;
+      background:#fafbfa;
+    }
+    .meal-entry-head{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:flex-start;
+    }
+    .meal-entry strong{ display:block; }
+    .meal-meta{ color:var(--muted); font-size:12px; margin-top:4px; }
+    .meal-notes{ margin-top:8px; font-size:13px; white-space:pre-wrap; }
+    .meal-entry .delete{ font-size:14px; }
+
+    .empty{
+      grid-column:1/-1;
+      border:1px dashed #cfd8d2;
+      border-radius:20px;
+      padding:50px 20px;
+      text-align:center;
+      color:var(--muted);
+      background:rgba(255,255,255,.55);
+    }
+    .empty strong{ display:block; color:var(--text); margin-bottom:7px; font-size:18px; }
+
+    .overlay{
+      position:fixed; inset:0; background:rgba(20,30,24,.45);
+      display:none; align-items:center; justify-content:center;
+      padding:18px; z-index:100; backdrop-filter:blur(4px);
+    }
+    .overlay.open{ display:flex; }
+    .modal{
+      width:min(520px,100%);
+      background:white; border-radius:24px; padding:20px;
+      box-shadow:0 30px 80px rgba(0,0,0,.18);
+      max-height:90vh; overflow:auto;
+    }
+    .modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .modal-head h2{ margin:0; font-size:22px; }
+    .close{
+      width:38px;height:38px;border:none;border-radius:12px;
+      background:#f1f3f2;font-size:20px;cursor:pointer;
+    }
+    .form{ display:grid; gap:14px; }
+    .form label{ display:grid; gap:7px; font-size:13px; font-weight:800; }
+    .form input[type="text"], .form input[type="number"]{
+      width:100%; padding:13px 14px; border:1px solid var(--line);
+      border-radius:13px; outline:none; font-size:15px;
+    }
+    .upload{
+      border:1px dashed #bdc9c1; border-radius:16px;
+      padding:18px; text-align:center; cursor:pointer; background:#fafbfa;
+    }
+    .upload input{ display:none; }
+    .preview{
+      width:100%; height:180px; border-radius:14px; object-fit:cover;
+      display:none; margin-top:10px;
+    }
+    .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:4px; }
+
+    .toast{
+      position:fixed; left:50%; bottom:24px;
+      transform:translateX(-50%) translateY(20px);
+      background:#1f2a24; color:white; padding:12px 16px;
+      border-radius:12px; opacity:0; pointer-events:none;
+      transition:.2s ease; z-index:200; box-shadow:var(--shadow); font-size:14px;
+    }
+    .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+    @media (max-width:800px){
+      .calendar-layout{ grid-template-columns:1fr; }
+    }
+    @media (max-width:680px){
+      .app{ width:min(100% - 18px,1180px); margin-top:10px; }
+      .topbar{ grid-template-columns:1fr auto; padding:9px; gap:9px; }
+      .search{ grid-column:1/-1; grid-row:2; }
+      .btn{ padding:12px 14px; }
+      .header{ align-items:center; }
+      .header h1{ font-size:24px; }
+      .header p{ font-size:14px; }
+      .grid{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+      .photo{ height:120px; }
+      .card{ min-height:245px; }
+      .card-body{ padding:12px; }
+      .item-name{ font-size:15px; }
+      .day{ min-height:74px; padding:6px; }
+      .meal-chip{ font-size:9px; padding:3px 4px; }
+    }
+    @media (max-width:420px){
+      .grid{ grid-template-columns:1fr; }
+      .photo{ height:165px; }
+      .weekdays,.calendar-grid{ gap:4px; }
+      .day{ min-height:66px; border-radius:10px; }
+      .meal-chip{ display:none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="nav">
+      <button id="stockTab" class="active">📦 Stock</button>
+      <button id="menuTab">📅 Menus</button>
+    </div>
+
+    <div class="topbar">
+      <button class="btn secondary" id="exportBtn">Exporter</button>
+      <div class="search">
+        <span>⌕</span>
+        <input id="searchInput" type="search" placeholder="Rechercher un aliment…" autocomplete="off" />
+      </div>
+      <button class="btn primary" id="addBtn">＋ Ajouter</button>
+    </div>
+
+    <section id="stockPage" class="page active">
+      <div class="header">
+        <div>
+          <h1>Stock de nourriture</h1>
+          <p>Ajoute, retire et retrouve rapidement ce qu’il te reste.</p>
+        </div>
+        <div class="count" id="countBadge">0 article</div>
+      </div>
+      <section class="grid" id="stockGrid"></section>
+    </section>
+
+    <section id="menuPage" class="page">
+      <div class="header">
+        <div>
+          <h1>Menus & repas</h1>
+          <p>Planifie les repas, le nombre de personnes et exporte tout avec ton stock.</p>
+        </div>
+        <div class="count" id="mealCountBadge">0 repas</div>
+      </div>
+
+      <div class="calendar-layout">
+        <div class="calendar-box">
+          <div class="calendar-head">
+            <button id="prevMonth">‹</button>
+            <div class="calendar-title" id="calendarTitle"></div>
+            <button id="nextMonth">›</button>
+          </div>
+          <div class="weekdays">
+            <div>Lun</div><div>Mar</div><div>Mer</div><div>Jeu</div><div>Ven</div><div>Sam</div><div>Dim</div>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <aside class="side-panel">
+          <h3>Ajouter les repas du jour</h3>
+          <div class="date-label" id="selectedDateLabel"></div>
+
+          <div class="meal-form-card">
+            <h4>☀️ Repas du midi</h4>
+
+            <div class="field">
+              <label for="lunchName">Repas</label>
+              <input id="lunchName" type="text" placeholder="Ex. Salade, pâtes, poulet…">
+            </div>
+
+            <div class="field">
+              <label for="lunchPeople">Nombre de personnes</label>
+              <input id="lunchPeople" type="number" min="1" value="4">
+            </div>
+
+            <div class="field">
+              <label for="lunchNotes">Détails (facultatif)</label>
+              <textarea id="lunchNotes" placeholder="Ex. sans oignons, prévoir une salade…"></textarea>
+            </div>
+
+            <button class="btn primary" id="saveLunch" style="width:100%">Enregistrer le midi</button>
+          </div>
+
+          <div class="meal-form-card">
+            <h4>🌙 Repas du soir</h4>
+
+            <div class="field">
+              <label for="dinnerName">Repas</label>
+              <input id="dinnerName" type="text" placeholder="Ex. Pizza, soupe, gratin…">
+            </div>
+
+            <div class="field">
+              <label for="dinnerPeople">Nombre de personnes</label>
+              <input id="dinnerPeople" type="number" min="1" value="4">
+            </div>
+
+            <div class="field">
+              <label for="dinnerNotes">Détails (facultatif)</label>
+              <textarea id="dinnerNotes" placeholder="Ex. ajouter un dessert, sans fromage…"></textarea>
+            </div>
+
+            <button class="btn primary" id="saveDinner" style="width:100%">Enregistrer le soir</button>
+          </div>
+
+          <div class="meal-list" id="mealList"></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <div class="overlay" id="overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <h2 id="modalTitle">Ajouter un produit</h2>
+        <button class="close" id="closeModal" aria-label="Fermer">×</button>
+      </div>
+      <form class="form" id="itemForm">
+        <label>
+          Nom
+          <input id="nameInput" type="text" placeholder="Ex. Pâtes, lait, riz…" required maxlength="80" />
+        </label>
+        <label class="upload" for="photoInput">
+          <span>📷 Ajouter une photo (facultatif)</span>
+          <input id="photoInput" type="file" accept="image/*" />
+          <img class="preview" id="preview" alt="Aperçu de la photo" />
+        </label>
+        <label>
+          Quantité
+          <input id="qtyInput" type="number" min="0" step="1" value="1" required />
+        </label>
+
+        <label>
+          Taille / contenance d'une unité
+          <div style="display:grid;grid-template-columns:1fr 120px;gap:10px">
+            <input id="sizeInput" type="number" min="0" step="any" placeholder="Ex. 500" />
+            <select id="unitInput" style="width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:13px;background:white">
+              <option value="g">g</option>
+              <option value="kg">kg</option>
+              <option value="ml">ml</option>
+              <option value="L">L</option>
+              <option value="cl">cl</option>
+              <option value="pièce">pièce</option>
+              <option value="boîte">boîte</option>
+              <option value="paquet">paquet</option>
+              <option value="bouteille">bouteille</option>
+            </select>
+          </div>
+          <span style="font-weight:500;color:var(--muted)">Ex. quantité 2 + taille 500 g = 2 paquets de 500 g.</span>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" id="cancelBtn">Annuler</button>
+          <button type="submit" class="btn primary">Sauvegarder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STOCK_KEY = "stock_nourriture_v1";
+    const MEALS_KEY = "repas_planifies_v1";
+
+    const stockGrid = document.getElementById("stockGrid");
+    const searchInput = document.getElementById("searchInput");
+    const addBtn = document.getElementById("addBtn");
+    const exportBtn = document.getElementById("exportBtn");
+    const overlay = document.getElementById("overlay");
+    const closeModal = document.getElementById("closeModal");
+    const cancelBtn = document.getElementById("cancelBtn");
+    const itemForm = document.getElementById("itemForm");
+    const nameInput = document.getElementById("nameInput");
+    const qtyInput = document.getElementById("qtyInput");
+    const sizeInput = document.getElementById("sizeInput");
+    const unitInput = document.getElementById("unitInput");
+    const photoInput = document.getElementById("photoInput");
+    const preview = document.getElementById("preview");
+    const countBadge = document.getElementById("countBadge");
+    const mealCountBadge = document.getElementById("mealCountBadge");
+    const toast = document.getElementById("toast");
+
+    const stockTab = document.getElementById("stockTab");
+    const menuTab = document.getElementById("menuTab");
+    const stockPage = document.getElementById("stockPage");
+    const menuPage = document.getElementById("menuPage");
+
+    const calendarGrid = document.getElementById("calendarGrid");
+    const calendarTitle = document.getElementById("calendarTitle");
+    const prevMonth = document.getElementById("prevMonth");
+    const nextMonth = document.getElementById("nextMonth");
+    const selectedDateLabel = document.getElementById("selectedDateLabel");
+    const lunchName = document.getElementById("lunchName");
+    const lunchPeople = document.getElementById("lunchPeople");
+    const lunchNotes = document.getElementById("lunchNotes");
+    const saveLunch = document.getElementById("saveLunch");
+
+    const dinnerName = document.getElementById("dinnerName");
+    const dinnerPeople = document.getElementById("dinnerPeople");
+    const dinnerNotes = document.getElementById("dinnerNotes");
+    const saveDinner = document.getElementById("saveDinner");
+    const mealList = document.getElementById("mealList");
+
+    let stock = load(STOCK_KEY, []);
+    let meals = load(MEALS_KEY, []);
+    let currentPhoto = "";
+
+    const today = new Date();
+    let shownMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    let selectedDate = toISODate(today);
+
+    function load(key, fallback) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(key));
+        return saved ?? fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function saveAll() {
+      localStorage.setItem(STOCK_KEY, JSON.stringify(stock));
+      localStorage.setItem(MEALS_KEY, JSON.stringify(meals));
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function toISODate(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth()+1).padStart(2,"0");
+      const d = String(date.getDate()).padStart(2,"0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatDateFR(iso) {
+      return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", {
+        weekday:"long", day:"numeric", month:"long", year:"numeric"
+      });
+    }
+
+    function switchPage(page) {
+      const stockActive = page === "stock";
+      stockPage.classList.toggle("active", stockActive);
+      menuPage.classList.toggle("active", !stockActive);
+      stockTab.classList.toggle("active", stockActive);
+      menuTab.classList.toggle("active", !stockActive);
+
+      searchInput.style.display = stockActive ? "" : "none";
+      addBtn.style.display = stockActive ? "" : "none";
+      document.querySelector(".search span").style.display = stockActive ? "" : "none";
+      if (!stockActive) renderCalendar();
+    }
+
+    stockTab.addEventListener("click", () => switchPage("stock"));
+    menuTab.addEventListener("click", () => switchPage("menu"));
+
+    function renderStock() {
+      const query = searchInput.value.trim().toLowerCase();
+      const filtered = stock.filter(item => item.name.toLowerCase().includes(query));
+      countBadge.textContent = stock.length + (stock.length > 1 ? " articles" : " article");
+
+      if (!filtered.length) {
+        stockGrid.innerHTML = `
+          <div class="empty">
+            <strong>${stock.length ? "Aucun résultat" : "Ton stock est vide"}</strong>
+            ${stock.length ? "Essaie un autre mot." : "Clique sur « Ajouter » pour enregistrer ton premier produit."}
+          </div>`;
+        return;
+      }
+
+      stockGrid.innerHTML = filtered.map(item => `
+        <article class="card">
+          <div class="photo">
+            ${item.photo
+              ? `<img src="${item.photo}" alt="${escapeHtml(item.name)}">`
+              : `<div class="placeholder" title="Pas de photo">📦</div>`}
+          </div>
+          <div class="card-body">
+            <div class="name-row">
+              <div>
+                <div class="item-name">${escapeHtml(item.name)}</div>
+                ${item.size ? `<div style="margin-top:5px;color:var(--muted);font-size:13px">${escapeHtml(item.size)} ${escapeHtml(item.unit || "")} / unité</div>` : ""}
+              </div>
+              <button class="delete" onclick="deleteItem('${item.id}')" title="Supprimer">✕</button>
+            </div>
+            <div class="qty-row">
+              <button class="round" onclick="changeQty('${item.id}', -1)">−</button>
+              <div class="qty">${item.qty}</div>
+              <button class="round plus" onclick="changeQty('${item.id}', 1)">＋</button>
+            </div>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function changeQty(id, delta) {
+      const item = stock.find(x => x.id === id);
+      if (!item) return;
+      item.qty = Math.max(0, Number(item.qty) + delta);
+      saveAll();
+      renderStock();
+    }
+
+    function deleteItem(id) {
+      const item = stock.find(x => x.id === id);
+      if (!item) return;
+      if (!confirm(`Supprimer « ${item.name} » du stock ?`)) return;
+      stock = stock.filter(x => x.id !== id);
+      saveAll();
+      renderStock();
+      showToast("Produit supprimé");
+    }
+
+    function openModalFn() {
+      overlay.classList.add("open");
+      setTimeout(() => nameInput.focus(), 50);
+    }
+
+    function closeModalFn() {
+      overlay.classList.remove("open");
+      itemForm.reset();
+      qtyInput.value = 1;
+      unitInput.value = "g";
+      currentPhoto = "";
+      preview.src = "";
+      preview.style.display = "none";
+    }
+
+    photoInput.addEventListener("change", () => {
+      const file = photoInput.files[0];
+      if (!file) {
+        currentPhoto = "";
+        preview.style.display = "none";
+        return;
+      }
+      if (file.size > 3 * 1024 * 1024) {
+        alert("La photo est trop lourde. Choisis une image de moins de 3 Mo.");
+        photoInput.value = "";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => {
+        currentPhoto = e.target.result;
+        preview.src = currentPhoto;
+        preview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    itemForm.addEventListener("submit", e => {
+      e.preventDefault();
+      const name = nameInput.value.trim();
+      const qty = Math.max(0, parseInt(qtyInput.value || "0", 10));
+      const sizeRaw = sizeInput.value.trim();
+      const size = sizeRaw === "" ? null : Math.max(0, parseFloat(sizeRaw));
+      const unit = unitInput.value;
+      if (!name) return;
+
+      stock.unshift({
+        id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2),
+        name, qty, size, unit, photo: currentPhoto, createdAt: new Date().toISOString()
+      });
+
+      saveAll();
+      renderStock();
+      closeModalFn();
+      showToast("Produit ajouté");
+    });
+
+    function renderCalendar() {
+      calendarTitle.textContent = shownMonth.toLocaleDateString("fr-FR", {
+        month:"long", year:"numeric"
+      });
+
+      const year = shownMonth.getFullYear();
+      const month = shownMonth.getMonth();
+      const first = new Date(year, month, 1);
+      const startOffset = (first.getDay() + 6) % 7;
+      const startDate = new Date(year, month, 1 - startOffset);
+
+      let html = "";
+      for (let i = 0; i < 42; i++) {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + i);
+        const iso = toISODate(date);
+        const dayMeals = meals.filter(m => m.date === iso);
+        const isCurrentMonth = date.getMonth() === month;
+        const isSelected = iso === selectedDate;
+
+        html += `
+          <div class="day ${isCurrentMonth ? "" : "muted"} ${isSelected ? "selected" : ""}"
+               onclick="selectDate('${iso}')">
+            <div class="day-number">${date.getDate()}</div>
+            ${dayMeals.slice(0,2).map(m => `<span class="meal-chip">${escapeHtml(m.type)} · ${escapeHtml(m.name)}</span>`).join("")}
+            ${dayMeals.length > 2 ? `<span class="meal-chip">+${dayMeals.length - 2} autre(s)</span>` : ""}
+          </div>`;
+      }
+      calendarGrid.innerHTML = html;
+      renderMealsForSelectedDate();
+      mealCountBadge.textContent = meals.length + (meals.length > 1 ? " repas" : " repas");
+    }
+
+    function selectDate(iso) {
+      selectedDate = iso;
+      const d = new Date(iso + "T12:00:00");
+      shownMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+      renderCalendar();
+    }
+
+    function renderMealsForSelectedDate() {
+      selectedDateLabel.textContent = formatDateFR(selectedDate);
+      const dayMeals = meals.filter(m => m.date === selectedDate);
+
+      if (!dayMeals.length) {
+        mealList.innerHTML = `<div class="empty" style="padding:22px 12px"><strong>Aucun repas prévu</strong>Ajoute-en un pour cette date.</div>`;
+        return;
+      }
+
+      mealList.innerHTML = dayMeals.map(m => `
+        <div class="meal-entry">
+          <div class="meal-entry-head">
+            <div>
+              <strong>${escapeHtml(m.type)} — ${escapeHtml(m.name)}</strong>
+              <div class="meal-meta">${m.people} personne${m.people > 1 ? "s" : ""}</div>
+            </div>
+            <button class="delete" onclick="deleteMeal('${m.id}')">✕</button>
+          </div>
+          ${m.notes ? `<div class="meal-notes">${escapeHtml(m.notes)}</div>` : ""}
+        </div>
+      `).join("");
+    }
+
+    function addMeal(type, nameInputEl, peopleInputEl, notesInputEl) {
+      const name = nameInputEl.value.trim();
+      const people = Math.max(1, parseInt(peopleInputEl.value || "1", 10));
+      const notes = notesInputEl.value.trim();
+
+      if (!name) {
+        alert(`Ajoute le repas du ${type === "Midi" ? "midi" : "soir"}.`);
+        nameInputEl.focus();
+        return;
+      }
+
+      meals.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2),
+        date: selectedDate,
+        type,
+        name,
+        people,
+        notes
+      });
+
+      nameInputEl.value = "";
+      notesInputEl.value = "";
+      saveAll();
+      renderCalendar();
+      showToast(`Repas du ${type === "Midi" ? "midi" : "soir"} ajouté`);
+    }
+
+    saveLunch.addEventListener("click", () => {
+      addMeal("Midi", lunchName, lunchPeople, lunchNotes);
+    });
+
+    saveDinner.addEventListener("click", () => {
+      addMeal("Soir", dinnerName, dinnerPeople, dinnerNotes);
+    });
+
+    function deleteMeal(id) {
+      meals = meals.filter(m => m.id !== id);
+      saveAll();
+      renderCalendar();
+      showToast("Repas supprimé");
+    }
+
+    prevMonth.addEventListener("click", () => {
+      shownMonth = new Date(shownMonth.getFullYear(), shownMonth.getMonth()-1, 1);
+      renderCalendar();
+    });
+
+    nextMonth.addEventListener("click", () => {
+      shownMonth = new Date(shownMonth.getFullYear(), shownMonth.getMonth()+1, 1);
+      renderCalendar();
+    });
+
+    exportBtn.addEventListener("click", () => {
+      const lines = [
+        "GESTIONNAIRE DE STOCK ET MENUS",
+        "Export du " + new Date().toLocaleString("fr-FR"),
+        "",
+        "=== STOCK ACTUEL ===",
+        ...(stock.length
+          ? stock.slice().sort((a,b) => a.name.localeCompare(b.name,"fr"))
+              .map(item => {
+                if (!item.size) return `- ${item.name} : ${item.qty}`;
+                const total = Number(item.qty) * Number(item.size);
+                return `- ${item.name} : ${item.qty} × ${item.size} ${item.unit || ""} (total : ${Number.isInteger(total) ? total : total.toFixed(2)} ${item.unit || ""})`;
+              })
+          : ["(stock vide)"]),
+        "",
+        "=== REPAS PLANIFIÉS ==="
+      ];
+
+      const sortedMeals = meals.slice().sort((a,b) => a.date.localeCompare(b.date));
+      if (!sortedMeals.length) {
+        lines.push("(aucun repas planifié)");
+      } else {
+        let lastDate = "";
+        for (const meal of sortedMeals) {
+          if (meal.date !== lastDate) {
+            lines.push("");
+            lines.push(formatDateFR(meal.date).toUpperCase());
+            lastDate = meal.date;
+          }
+          lines.push(`- ${meal.type} : ${meal.name} — ${meal.people} personne${meal.people > 1 ? "s" : ""}`);
+          if (meal.notes) lines.push(`  Détails : ${meal.notes}`);
+        }
+      }
+
+      lines.push(
+        "",
+        "=== INSTRUCTION POUR UNE IA ===",
+        "À partir du stock actuel et des repas planifiés ci-dessus, crée une liste de courses adaptée.",
+        "Prends en compte le nombre de personnes pour chaque repas.",
+        "Évite de racheter ce qui semble déjà disponible dans le stock.",
+        "Regroupe la liste de courses par catégories (fruits/légumes, frais, épicerie, etc.).",
+        "Si une quantité exacte ne peut pas être déduite, propose une estimation raisonnable."
+      );
+
+      const blob = new Blob([lines.join("\n")], {type:"text/plain;charset=utf-8"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "stock-et-menus.txt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast("Stock + menus exportés");
+    });
+
+    searchInput.addEventListener("input", renderStock);
+    addBtn.addEventListener("click", openModalFn);
+    closeModal.addEventListener("click", closeModalFn);
+    cancelBtn.addEventListener("click", closeModalFn);
+    overlay.addEventListener("click", e => {
+      if (e.target === overlay) closeModalFn();
+    });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && overlay.classList.contains("open")) closeModalFn();
+    });
+
+    renderStock();
+    renderCalendar();
+  </script>
+</body>
+</html>
