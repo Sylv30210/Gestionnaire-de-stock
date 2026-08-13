@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon Stock</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root{
+      --bg:#f6f7f4;
+      --panel:#ffffff;
+      --text:#1f2a24;
+      --muted:#6f7b74;
+      --line:#e3e8e4;
+      --green:#2f6f4e;
+      --green-dark:#24583e;
+      --green-soft:#e9f3ed;
+      --danger:#b74e4e;
+      --shadow:0 10px 30px rgba(28,45,35,.08);
+      --radius:18px;
+    }
+    body{
+      margin:0;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    .app{
+      width:min(1180px, calc(100% - 28px));
+      margin:26px auto 60px;
+    }
+    .topbar{
+      display:grid;
+      grid-template-columns:auto 1fr auto;
+      gap:12px;
+      align-items:center;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:22px;
+      padding:12px;
+      box-shadow:var(--shadow);
+      position:sticky;
+      top:12px;
+      z-index:20;
+    }
+    .btn{
+      border:none;
+      border-radius:14px;
+      padding:13px 16px;
+      font-weight:700;
+      cursor:pointer;
+      font-size:14px;
+      transition:.18s ease;
+      white-space:nowrap;
+    }
+    .btn:hover{ transform:translateY(-1px); }
+    .btn.secondary{ background:#f0f3f1; color:var(--text); }
+    .btn.primary{ background:var(--green); color:white; }
+    .btn.primary:hover{ background:var(--green-dark); }
+    .search{
+      position:relative;
+      min-width:0;
+    }
+    .search input{
+      width:100%;
+      border:1px solid var(--line);
+      background:#fafbfa;
+      border-radius:14px;
+      padding:13px 16px 13px 42px;
+      outline:none;
+      font-size:15px;
+    }
+    .search input:focus{
+      border-color:#9fb8aa;
+      box-shadow:0 0 0 4px rgba(47,111,78,.08);
+      background:white;
+    }
+    .search span{
+      position:absolute;
+      left:15px;
+      top:50%;
+      transform:translateY(-50%);
+      color:var(--muted);
+      font-size:18px;
+      pointer-events:none;
+    }
+    .header{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:16px;
+      margin:28px 4px 16px;
+    }
+    .header h1{ margin:0; font-size:28px; letter-spacing:-.6px; }
+    .header p{ margin:7px 0 0; color:var(--muted); }
+    .count{
+      background:var(--green-soft);
+      color:var(--green-dark);
+      border-radius:999px;
+      padding:8px 12px;
+      font-weight:700;
+      font-size:13px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:16px;
+    }
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      overflow:hidden;
+      box-shadow:0 6px 20px rgba(28,45,35,.05);
+      display:flex;
+      flex-direction:column;
+      min-height:275px;
+    }
+    .photo{
+      height:155px;
+      background:linear-gradient(135deg,#edf2ee,#f9faf9);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      border-bottom:1px solid var(--line);
+    }
+    .photo img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .placeholder{
+      width:58px;
+      height:58px;
+      border-radius:18px;
+      background:white;
+      border:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:28px;
+      box-shadow:0 8px 24px rgba(28,45,35,.07);
+    }
+    .card-body{
+      padding:15px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      flex:1;
+    }
+    .name-row{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:flex-start;
+    }
+    .item-name{
+      font-weight:800;
+      font-size:17px;
+      line-height:1.25;
+      overflow-wrap:anywhere;
+    }
+    .delete{
+      border:none;
+      background:transparent;
+      color:#9aa39d;
+      cursor:pointer;
+      padding:2px 4px;
+      font-size:16px;
+    }
+    .delete:hover{ color:var(--danger); }
+    .qty-row{
+      margin-top:auto;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      background:#f7f9f7;
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:7px;
+    }
+    .qty{
+      font-size:16px;
+      font-weight:800;
+      min-width:36px;
+      text-align:center;
+    }
+    .round{
+      width:36px;
+      height:36px;
+      border:none;
+      border-radius:11px;
+      cursor:pointer;
+      font-size:20px;
+      font-weight:700;
+      background:white;
+      color:var(--text);
+      border:1px solid var(--line);
+    }
+    .round.plus{
+      background:var(--green);
+      color:white;
+      border-color:var(--green);
+    }
+    .empty{
+      grid-column:1/-1;
+      border:1px dashed #cfd8d2;
+      border-radius:20px;
+      padding:50px 20px;
+      text-align:center;
+      color:var(--muted);
+      background:rgba(255,255,255,.55);
+    }
+    .empty strong{
+      display:block;
+      color:var(--text);
+      margin-bottom:7px;
+      font-size:18px;
+    }
+
+    .overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(20,30,24,.45);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      z-index:100;
+      backdrop-filter:blur(4px);
+    }
+    .overlay.open{ display:flex; }
+    .modal{
+      width:min(520px,100%);
+      background:white;
+      border-radius:24px;
+      padding:20px;
+      box-shadow:0 30px 80px rgba(0,0,0,.18);
+      max-height:90vh;
+      overflow:auto;
+    }
+    .modal-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:16px;
+    }
+    .modal-head h2{ margin:0; font-size:22px; }
+    .close{
+      width:38px;
+      height:38px;
+      border:none;
+      border-radius:12px;
+      background:#f1f3f2;
+      font-size:20px;
+      cursor:pointer;
+    }
+    .form{
+      display:grid;
+      gap:14px;
+    }
+    label{
+      display:grid;
+      gap:7px;
+      font-size:13px;
+      font-weight:800;
+    }
+    input[type="text"], input[type="number"]{
+      width:100%;
+      padding:13px 14px;
+      border:1px solid var(--line);
+      border-radius:13px;
+      outline:none;
+      font-size:15px;
+    }
+    input[type="text"]:focus, input[type="number"]:focus{
+      border-color:#9fb8aa;
+      box-shadow:0 0 0 4px rgba(47,111,78,.08);
+    }
+    .upload{
+      border:1px dashed #bdc9c1;
+      border-radius:16px;
+      padding:18px;
+      text-align:center;
+      cursor:pointer;
+      background:#fafbfa;
+    }
+    .upload input{ display:none; }
+    .preview{
+      width:100%;
+      height:180px;
+      border-radius:14px;
+      object-fit:cover;
+      display:none;
+      margin-top:10px;
+    }
+    .modal-actions{
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      margin-top:4px;
+    }
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:24px;
+      transform:translateX(-50%) translateY(20px);
+      background:#1f2a24;
+      color:white;
+      padding:12px 16px;
+      border-radius:12px;
+      opacity:0;
+      pointer-events:none;
+      transition:.2s ease;
+      z-index:200;
+      box-shadow:var(--shadow);
+      font-size:14px;
+    }
+    .toast.show{
+      opacity:1;
+      transform:translateX(-50%) translateY(0);
+    }
+
+    @media (max-width:680px){
+      .app{ width:min(100% - 18px,1180px); margin-top:10px; }
+      .topbar{
+        grid-template-columns:1fr auto;
+        padding:9px;
+        gap:9px;
+      }
+      .search{ grid-column:1/-1; grid-row:2; }
+      .btn{ padding:12px 14px; }
+      .header{ align-items:center; }
+      .header h1{ font-size:24px; }
+      .header p{ font-size:14px; }
+      .grid{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+      .photo{ height:120px; }
+      .card{ min-height:245px; }
+      .card-body{ padding:12px; }
+      .item-name{ font-size:15px; }
+    }
+    @media (max-width:420px){
+      .grid{ grid-template-columns:1fr; }
+      .photo{ height:165px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="topbar">
+      <button class="btn secondary" id="exportBtn">Exporter</button>
+
+      <div class="search">
+        <span>⌕</span>
+        <input id="searchInput" type="search" placeholder="Rechercher un aliment…" autocomplete="off" />
+      </div>
+
+      <button class="btn primary" id="addBtn">＋ Ajouter</button>
+    </div>
+
+    <section class="header">
+      <div>
+        <h1>Stock de nourriture</h1>
+        <p>Ajoute, retire et retrouve rapidement ce qu’il te reste.</p>
+      </div>
+      <div class="count" id="countBadge">0 article</div>
+    </section>
+
+    <section class="grid" id="stockGrid"></section>
+  </main>
+
+  <div class="overlay" id="overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <h2 id="modalTitle">Ajouter un produit</h2>
+        <button class="close" id="closeModal" aria-label="Fermer">×</button>
+      </div>
+
+      <form class="form" id="itemForm">
+        <label>
+          Nom
+          <input id="nameInput" type="text" placeholder="Ex. Pâtes, lait, riz…" required maxlength="80" />
+        </label>
+
+        <label class="upload" for="photoInput">
+          <span>📷 Ajouter une photo (facultatif)</span>
+          <input id="photoInput" type="file" accept="image/*" />
+          <img class="preview" id="preview" alt="Aperçu de la photo" />
+        </label>
+
+        <label>
+          Quantité
+          <input id="qtyInput" type="number" min="0" step="1" value="1" required />
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" id="cancelBtn">Annuler</button>
+          <button type="submit" class="btn primary">Sauvegarder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = "stock_nourriture_v1";
+
+    const stockGrid = document.getElementById("stockGrid");
+    const searchInput = document.getElementById("searchInput");
+    const addBtn = document.getElementById("addBtn");
+    const exportBtn = document.getElementById("exportBtn");
+    const overlay = document.getElementById("overlay");
+    const closeModal = document.getElementById("closeModal");
+    const cancelBtn = document.getElementById("cancelBtn");
+    const itemForm = document.getElementById("itemForm");
+    const nameInput = document.getElementById("nameInput");
+    const qtyInput = document.getElementById("qtyInput");
+    const photoInput = document.getElementById("photoInput");
+    const preview = document.getElementById("preview");
+    const countBadge = document.getElementById("countBadge");
+    const toast = document.getElementById("toast");
+
+    let stock = loadStock();
+    let currentPhoto = "";
+
+    function loadStock() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return Array.isArray(saved) ? saved : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveStock() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stock));
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function render() {
+      const query = searchInput.value.trim().toLowerCase();
+      const filtered = stock.filter(item => item.name.toLowerCase().includes(query));
+
+      countBadge.textContent = stock.length + (stock.length > 1 ? " articles" : " article");
+
+      if (!filtered.length) {
+        stockGrid.innerHTML = `
+          <div class="empty">
+            <strong>${stock.length ? "Aucun résultat" : "Ton stock est vide"}</strong>
+            ${stock.length ? "Essaie un autre mot dans la recherche." : "Clique sur « Ajouter » pour enregistrer ton premier produit."}
+          </div>`;
+        return;
+      }
+
+      stockGrid.innerHTML = filtered.map(item => `
+        <article class="card">
+          <div class="photo">
+            ${item.photo
+              ? `<img src="${item.photo}" alt="${escapeHtml(item.name)}">`
+              : `<div class="placeholder" title="Pas de photo">📦</div>`}
+          </div>
+          <div class="card-body">
+            <div class="name-row">
+              <div class="item-name">${escapeHtml(item.name)}</div>
+              <button class="delete" onclick="deleteItem('${item.id}')" title="Supprimer">✕</button>
+            </div>
+            <div class="qty-row">
+              <button class="round" onclick="changeQty('${item.id}', -1)" aria-label="Retirer 1">−</button>
+              <div class="qty">${item.qty}</div>
+              <button class="round plus" onclick="changeQty('${item.id}', 1)" aria-label="Ajouter 1">＋</button>
+            </div>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function changeQty(id, delta) {
+      const item = stock.find(x => x.id === id);
+      if (!item) return;
+      item.qty = Math.max(0, Number(item.qty) + delta);
+      saveStock();
+      render();
+    }
+
+    function deleteItem(id) {
+      const item = stock.find(x => x.id === id);
+      if (!item) return;
+      if (!confirm(`Supprimer « ${item.name} » du stock ?`)) return;
+      stock = stock.filter(x => x.id !== id);
+      saveStock();
+      render();
+      showToast("Produit supprimé");
+    }
+
+    function openModal() {
+      overlay.classList.add("open");
+      setTimeout(() => nameInput.focus(), 50);
+    }
+
+    function closeModalFn() {
+      overlay.classList.remove("open");
+      itemForm.reset();
+      qtyInput.value = 1;
+      currentPhoto = "";
+      preview.src = "";
+      preview.style.display = "none";
+    }
+
+    photoInput.addEventListener("change", () => {
+      const file = photoInput.files[0];
+      if (!file) {
+        currentPhoto = "";
+        preview.style.display = "none";
+        return;
+      }
+
+      if (file.size > 3 * 1024 * 1024) {
+        alert("La photo est trop lourde. Choisis une image de moins de 3 Mo.");
+        photoInput.value = "";
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        currentPhoto = e.target.result;
+        preview.src = currentPhoto;
+        preview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    itemForm.addEventListener("submit", e => {
+      e.preventDefault();
+
+      const name = nameInput.value.trim();
+      const qty = Math.max(0, parseInt(qtyInput.value || "0", 10));
+
+      if (!name) return;
+
+      stock.unshift({
+        id: (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)),
+        name,
+        qty,
+        photo: currentPhoto,
+        createdAt: new Date().toISOString()
+      });
+
+      saveStock();
+      render();
+      closeModalFn();
+      showToast("Produit ajouté");
+    });
+
+    exportBtn.addEventListener("click", () => {
+      const lines = [
+        "STOCK DE NOURRITURE",
+        "Export du " + new Date().toLocaleString("fr-FR"),
+        "",
+        ...stock
+          .slice()
+          .sort((a,b) => a.name.localeCompare(b.name, "fr"))
+          .map(item => `- ${item.name} : ${item.qty}`)
+      ];
+
+      if (!stock.length) lines.push("(stock vide)");
+
+      lines.push(
+        "",
+        "Instruction possible pour une IA :",
+        "À partir de ce stock, aide-moi à préparer une liste de courses adaptée à mes besoins."
+      );
+
+      const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "stock-nourriture.txt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast("Stock exporté en TXT");
+    });
+
+    searchInput.addEventListener("input", render);
+    addBtn.addEventListener("click", openModal);
+    closeModal.addEventListener("click", closeModalFn);
+    cancelBtn.addEventListener("click", closeModalFn);
+
+    overlay.addEventListener("click", e => {
+      if (e.target === overlay) closeModalFn();
+    });
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && overlay.classList.contains("open")) closeModalFn();
+    });
+
+    render();
+  </script>
+</body>
+</html>
